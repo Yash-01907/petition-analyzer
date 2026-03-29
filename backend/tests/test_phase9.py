@@ -200,7 +200,59 @@ except ValueError:
     check("Invalid platform raises ValueError", True)
 
 
-# ── TEST 4: Unauthenticated adapter fails ────────────────────────────────────
+# ── TEST 5: API Endpoints (retrain & export-pdf) ─────────────────────────────
+print("\n🧪 TEST 5: API Endpoints (retrain & export-pdf)")
+
+from fastapi.testclient import TestClient
+import main
+from main import app
+
+orig_state = dict(main._model_state)
+orig_result = dict(main._last_analysis_result)
+
+client = TestClient(app)
+
+# Test PDF export success
+main._last_analysis_result = mock_result
+r_pdf = client.get("/api/export-pdf")
+check("GET /api/export-pdf returns 200", r_pdf.status_code == 200)
+check("PDF response has correct content type", r_pdf.headers.get("content-type") == "application/pdf")
+check("PDF response contains bytes", len(r_pdf.content) > 1024)
+
+# Test PDF export without analysis
+main._last_analysis_result.clear()
+r_pdf_fail = client.get("/api/export-pdf")
+check("GET /api/export-pdf without analysis returns 400", r_pdf_fail.status_code == 400)
+
+# Back up sample_campaigns.csv to avoid modifying it permanently
+real_csv = os.path.join(os.path.dirname(__file__), "..", "data", "sample_campaigns.csv")
+backup_csv = real_csv + ".bak"
+if os.path.exists(real_csv):
+    shutil.copy2(real_csv, backup_csv)
+
+# Test retrain success
+retrain_csv = b"headline,body_text,cta_text,unique_visitors,signatures,traffic_source\n" \
+              b"Another test,This is the body text which needs to have enough words to process properly and not fail due to word count limits on empty text,Click here,1000,50,email\n"
+
+try:
+    r_retrain = client.post("/api/retrain", files={"file": ("new.csv", retrain_csv, "text/csv")})
+    check("POST /api/retrain returns 200", r_retrain.status_code == 200)
+    retrain_data = r_retrain.json()
+    check("Retrain status is success", retrain_data.get("status") == "success")
+    check("Retrain payload has cv_metrics", "cv_metrics" in retrain_data)
+
+    # Test retrain failure
+    r_retrain_fail = client.post("/api/retrain", files={"file": ("bad.csv", b"", "text/csv")})
+    check("POST /api/retrain with bad data returns 400", r_retrain_fail.status_code == 400)
+finally:
+    # Restore sample_campaigns.csv
+    if os.path.exists(backup_csv):
+        shutil.move(backup_csv, real_csv)
+
+main._model_state.clear()
+main._model_state.update(orig_state)
+main._last_analysis_result.clear()
+main._last_analysis_result.update(orig_result)
 print("\n🧪 TEST 4: Unauthenticated adapter raises error")
 
 fresh_ak = get_adapter("actionkit")

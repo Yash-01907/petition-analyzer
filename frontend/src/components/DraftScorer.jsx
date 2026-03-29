@@ -1,7 +1,7 @@
 // frontend/src/components/DraftScorer.jsx
 
 import { useState } from "react";
-import axios from "axios";
+import { scoreDraft } from "../api/client";
 import RecommendationCard from "./RecommendationCard";
 
 const GRADE_COLORS = {
@@ -28,8 +28,8 @@ export default function DraftScorer({ avgRate }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.post("/api/score-draft", form);
-      setResult(res.data);
+      const data = await scoreDraft(form);
+      setResult(data);
     } catch (e) {
       setError(e.response?.data?.detail || "Scoring failed. Upload campaign data first.");
     } finally {

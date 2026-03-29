@@ -35,7 +35,18 @@ FEATURE_LABELS = {
     "has_image": "Hero image present",
     "has_video": "Video present",
     "campaign_duration_days": "Campaign duration",
-    "traffic_source_encoded": "Traffic source",
+    "source_email": "Traffic source: Email",
+    "source_social": "Traffic source: Social",
+    "source_organic": "Traffic source: Organic",
+    "source_paid": "Traffic source: Paid",
+    "category_environment": "Cause: Environment",
+    "category_housing": "Cause: Housing",
+    "category_healthcare": "Cause: Healthcare",
+    "category_education": "Cause: Education",
+    "category_transit": "Cause: Transit",
+    "category_food_security": "Cause: Food Security",
+    "category_civil_rights": "Cause: Civil Rights",
+    "category_climate": "Cause: Climate",
 }
 
 # ── Recommendation rule templates ─────────────────────────────────────────────

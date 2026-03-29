@@ -369,9 +369,6 @@ async def retrain_with_new_data(file: UploadFile = File(...)):
         subset=["headline", "body_text"], keep="last", inplace=True
     )
 
-    # Save combined dataset
-    combined_df.to_csv("data/sample_campaigns.csv", index=False)
-
     # Validate and clean
     try:
         df, validation_errors = load_and_validate_csv(combined_df)
@@ -385,6 +382,10 @@ async def retrain_with_new_data(file: UploadFile = File(...)):
     X = extract_features(df)
     y = df["conversion_rate"]
     model, scaler, shap_values, feature_importance, cv_metrics = train_and_explain(X, y)
+
+    # Save validated dataset only on success
+    df.to_csv("data/sample_campaigns.csv", index=False)
+
 
     # Update model state
     _model_state["model"] = model

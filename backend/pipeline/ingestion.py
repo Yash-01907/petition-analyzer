@@ -87,9 +87,12 @@ def load_and_validate_csv(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         )
 
     # ── 8. Coerce boolean columns ─────────────────────────────────────────
+    truthy_vals = {"true", "1", "yes", "t", "y"}
     for col in ["has_image", "has_video"]:
         if col in df.columns:
-            df[col] = df[col].astype(bool)
+            df[col] = df[col].apply(
+                lambda x: str(x).lower().strip() in truthy_vals if pd.notnull(x) else False
+            )
 
     # ── 9. Coerce campaign_duration_days ──────────────────────────────────
     df["campaign_duration_days"] = pd.to_numeric(

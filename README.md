@@ -32,7 +32,7 @@ python data/synthetic_generator.py
 uvicorn main:app --reload --port 8000
 ```
 
-API docs: http://localhost:8000/docs
+API docs: <http://localhost:8000/docs>
 
 ### Frontend
 
@@ -46,7 +46,7 @@ npm install
 npm run dev
 ```
 
-App: http://localhost:5173
+App: <http://localhost:5173>
 
 ### Running Tests
 
@@ -59,13 +59,14 @@ python tests/test_feature_extraction.py
 python tests/test_modeling.py
 python tests/test_recommender.py
 python tests/test_api.py
+python tests/test_phase9.py
 ```
 
-All 5 suites (210 total checks) should pass with `🎉 All tests passed!`.
+All 6 suites (240+ total checks) should pass with `🎉 All tests passed!`.
 
 ## Demo Walkthrough
 
-1. **Open the app** at http://localhost:5173 (backend must be running on :8000).
+1. **Open the app** at <http://localhost:5173> (backend must be running on :8000).
 2. **Click "Generate & Load Mock Data"** — this fetches the pre-generated 120-row synthetic dataset from the backend, uploads it to `/api/analyze`, trains the model, and transitions to the Analysis Dashboard.
 3. **Explore the dashboard** — review the summary cards (campaigns analyzed, average conversion rate, top traffic source), the SHAP feature importance bar chart, the archetype clusters, and the campaign leaderboard.
 4. **Switch to the "✏️ Score Draft" tab** — enter a headline, body text, and CTA. The system will predict a conversion rate, assign a letter grade (A–F), and return actionable recommendations ranked by impact.
@@ -91,7 +92,7 @@ petition-analyzer/
 │   │   ├── export.py                 # PDF report generation (ReportLab)
 │   │   ├── integrations.py          # ActionKit/NationBuilder adapters
 │   │   └── model_store.py           # Persistent model storage (joblib)
-│   └── tests/                        # 6 test suites, 230+ checks
+│   └── tests/                        # 6 test suites, 240+ checks
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx                   # Shell with tab routing
@@ -109,7 +110,7 @@ petition-analyzer/
 ## Tech Stack
 
 | Layer | Technology |
-|---|---|
+| --- | --- |
 | Backend | Python, FastAPI, spaCy, VADER, NRCLex, Textstat |
 | ML | XGBoost / RandomForest / Ridge (adaptive by dataset size) |
 | Explainability | SHAP (directional feature impact per campaign) |
@@ -147,7 +148,7 @@ petition-analyzer/
 ## Modeling Decisions
 
 | Decision | Rationale |
-|---|---|
+| --- | --- |
 | XGBoost over deep learning | Small dataset (30–200 samples). XGBoost is purpose-built for tabular data. |
 | Regression over classification | Conversion rate is continuous — regression preserves "how much better" comparisons. |
 | SHAP over `.feature_importances_` | SHAP gives *directional* impact (hurts vs helps), enabling personalized recommendations. |

@@ -6,7 +6,12 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from fastapi.testclient import TestClient
+import main
 from main import app
+
+# Clear model state to ensure deterministic tests
+main._model_state.clear()
+main._last_analysis_result.clear()
 
 passed = 0
 failed = 0

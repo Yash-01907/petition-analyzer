@@ -70,7 +70,7 @@ check("Group D: first_person_density exists", "first_person_density" in X_single
 check("Group E: cta_is_specific exists", "cta_is_specific" in X_single.columns)
 check("Group E: cta_has_named_official exists", "cta_has_named_official" in X_single.columns)
 check("Group F: launch_month exists", "launch_month" in X_single.columns)
-check("Group F: traffic_source_encoded exists", "traffic_source_encoded" in X_single.columns)
+check("Group F: source_email exists", "source_email" in X_single.columns)
 
 # Check all values are numeric (no NaN, no strings)
 check("All values are numeric", X_single.dtypes.apply(lambda d: np.issubdtype(d, np.number)).all())

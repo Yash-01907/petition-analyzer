@@ -1,7 +1,7 @@
 // frontend/src/components/UploadPanel.jsx
 
 import React, { useState } from "react";
-import axios from "axios";
+import { analyzeCSV, getSampleCSV } from "../api/client";
 
 export default function UploadPanel({ onAnalysisComplete, isLoading, setIsLoading }) {
   const [error, setError] = useState(null);
@@ -13,14 +13,9 @@ export default function UploadPanel({ onAnalysisComplete, isLoading, setIsLoadin
     setIsLoading(true);
     setError(null);
 
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
-      const res = await axios.post("/api/analyze", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      onAnalysisComplete(res.data);
+      const data = await analyzeCSV(file);
+      onAnalysisComplete(data);
     } catch (err) {
       setError(
         err.response?.data?.detail || 
@@ -35,21 +30,11 @@ export default function UploadPanel({ onAnalysisComplete, isLoading, setIsLoadin
     setIsLoading(true);
     setError(null);
     try {
-      const sampleRes = await fetch("/api/sample-csv");
-      if (!sampleRes.ok) {
-        throw new Error("Could not fetch sample CSV data.");
-      }
-      
-      const blob = await sampleRes.blob();
+      const blob = await getSampleCSV();
       const file = new File([blob], "sample_campaigns.csv", { type: "text/csv" });
       
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await axios.post("/api/analyze", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      onAnalysisComplete(res.data);
+      const data = await analyzeCSV(file);
+      onAnalysisComplete(data);
     } catch (err) {
       setError(err.response?.data?.detail || err.message || "Failed to load sample data.");
     } finally {

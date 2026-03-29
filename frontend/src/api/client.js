@@ -22,8 +22,8 @@ export async function scoreDraft(draft) {
   return res.data;
 }
 
-export async function getSampleData() {
-  const res = await api.get("/api/sample-data");
+export async function getSampleCSV() {
+  const res = await api.get("/api/sample-csv", { responseType: "blob" });
   return res.data;
 }
 
