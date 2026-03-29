@@ -16,7 +16,6 @@ import pandas as pd
 import numpy as np
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from nrclex import NRCLex
-from sklearn.preprocessing import LabelEncoder
 from datetime import datetime
 
 # Load spaCy model (run: python -m spacy download en_core_web_sm)
@@ -220,12 +219,40 @@ def extract_temporal_features(launch_date):
     return features
 
 
+# ── Known categorical values (fixed vocabulary) ──────────────────────────────
+
+TRAFFIC_SOURCES = ["email", "social", "organic", "paid"]
+CAUSE_CATEGORIES = [
+    "environment", "housing", "healthcare", "education",
+    "transit", "food_security", "civil_rights", "climate",
+]
+
+
+def encode_categoricals(row):
+    """One-hot encode traffic_source and cause_category with a fixed vocabulary.
+
+    Unlike LabelEncoder, this produces identical encodings whether called on
+    a 120-row training DataFrame or a single-row scoring request.
+    """
+    features = {}
+    source = str(row.get("traffic_source", "email")).lower().strip()
+    category = str(row.get("cause_category", "environment")).lower().strip()
+
+    for s in TRAFFIC_SOURCES:
+        features[f"source_{s}"] = int(source == s)
+
+    for c in CAUSE_CATEGORIES:
+        features[f"category_{c}"] = int(category == c)
+
+    return features
+
+
 # ── Master feature extraction function ───────────────────────────────────────
 
 def extract_features(df: pd.DataFrame) -> pd.DataFrame:
     """Extract the full numeric feature matrix from a campaign DataFrame.
 
-    Runs all six feature groups on every row and encodes categorical columns.
+    Runs all six feature groups on every row and one-hot encodes categoricals.
 
     Args:
         df: Cleaned campaign DataFrame (output of ingestion pipeline).
@@ -236,17 +263,6 @@ def extract_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     feature_rows = []
 
-    # Encode categoricals
-    le_traffic = LabelEncoder()
-    le_cause = LabelEncoder()
-
-    df["traffic_source_encoded"] = le_traffic.fit_transform(
-        df["traffic_source"].fillna("email")
-    )
-    df["cause_category_encoded"] = le_cause.fit_transform(
-        df["cause_category"].fillna("environment")
-    )
-
     for _, row in df.iterrows():
         features = {}
         features.update(extract_structural_features(row))
@@ -256,8 +272,8 @@ def extract_features(df: pd.DataFrame) -> pd.DataFrame:
         features.update(extract_readability_features(row.get("body_text", "")))
         features.update(extract_cta_features(row.get("cta_text", "")))
         features.update(extract_temporal_features(row.get("launch_date", "")))
-        features["traffic_source_encoded"] = row["traffic_source_encoded"]
-        features["cause_category_encoded"] = row["cause_category_encoded"]
+        features.update(encode_categoricals(row))
         feature_rows.append(features)
 
     return pd.DataFrame(feature_rows)
+

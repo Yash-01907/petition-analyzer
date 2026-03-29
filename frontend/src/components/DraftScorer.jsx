@@ -141,6 +141,36 @@ export default function DraftScorer({ avgRate }) {
 
       {result && (
         <div className="space-y-4">
+          {/* Quality Warnings */}
+          {result.quality_warnings?.length > 0 && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5">
+              <h3 className="text-sm font-bold text-amber-800 uppercase tracking-wide mb-3 flex items-center gap-2">
+                <span>⚠️</span> Content Quality Issues Detected
+              </h3>
+              <p className="text-xs text-amber-700 mb-3">
+                Your score has been adjusted because the content is outside the range of effective petition copy.
+                Fix these issues for an accurate prediction.
+              </p>
+              <div className="space-y-2">
+                {result.quality_warnings.map((w, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-start gap-2 text-sm rounded-lg px-3 py-2 ${
+                      w.severity === "high"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-amber-100 text-amber-800"
+                    }`}
+                  >
+                    <span className="font-semibold capitalize shrink-0">
+                      {w.field.replace("_", " ")}:
+                    </span>
+                    <span>{w.issue}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Score Card */}
           <div className={`rounded-xl border-2 p-6 ${GRADE_COLORS[result.grade]}`}>
             <div className="flex items-center justify-between">

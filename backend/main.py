@@ -185,11 +185,62 @@ async def score_draft(request: DraftScoreRequest):
     """Score a new campaign draft in real-time.
 
     Returns predicted conversion rate, letter grade, and top recommendations.
+    Includes content quality warnings and prediction penalties for low-quality inputs.
     Requires a model to be trained first via /api/analyze.
     """
     if not _model_state.get("model"):
         raise HTTPException(400, "No model trained yet. Upload campaign data first.")
 
+    # ── Content quality gates ─────────────────────────────────────────────
+    quality_warnings = []
+    quality_penalty = 1.0  # Multiplier: 1.0 = no penalty, 0.0 = zeroed out
+
+    hl_words = len(request.headline.strip().split())
+    body_words = len(request.body_text.strip().split())
+    cta_words = len(request.cta_text.strip().split())
+
+    # Headline checks
+    if hl_words < 3:
+        quality_warnings.append({
+            "field": "headline",
+            "issue": f"Too short ({hl_words} word{'s' if hl_words != 1 else ''}). Effective headlines are 5–15 words.",
+            "severity": "high",
+        })
+        quality_penalty *= 0.3
+    elif hl_words < 5:
+        quality_warnings.append({
+            "field": "headline",
+            "issue": f"Short ({hl_words} words). Best-performing headlines use 5–15 words.",
+            "severity": "medium",
+        })
+        quality_penalty *= 0.7
+
+    # Body text checks
+    if body_words < 10:
+        quality_warnings.append({
+            "field": "body_text",
+            "issue": f"Far too short ({body_words} words). Petition bodies need at least 80 words to be persuasive.",
+            "severity": "high",
+        })
+        quality_penalty *= 0.2
+    elif body_words < 40:
+        quality_warnings.append({
+            "field": "body_text",
+            "issue": f"Very short ({body_words} words). High-converting petitions average 120–250 words.",
+            "severity": "medium",
+        })
+        quality_penalty *= 0.5
+
+    # CTA checks
+    if cta_words < 2:
+        quality_warnings.append({
+            "field": "cta_text",
+            "issue": f"Too short ({cta_words} word{'s' if cta_words != 1 else ''}). CTAs should clearly state what action to take.",
+            "severity": "high",
+        })
+        quality_penalty *= 0.5
+
+    # ── Run model prediction ──────────────────────────────────────────────
     result = score_new_campaign(
         model=_model_state["model"],
         scaler=_model_state["scaler"],
@@ -201,8 +252,12 @@ async def score_draft(request: DraftScoreRequest):
         cause_category=request.cause_category or "environment",
     )
 
+    # Apply quality penalty to the raw prediction
+    raw_rate = result["predicted_conversion_rate"]
+    penalized_rate = round(raw_rate * quality_penalty, 2)
+
     score = compute_campaign_score(
-        result["predicted_conversion_rate"],
+        penalized_rate,
         _model_state["avg_rate"],
         _model_state["std_rate"],
     )
@@ -220,6 +275,8 @@ async def score_draft(request: DraftScoreRequest):
         **score,
         "features": result["features"],
         "recommendations": recommendations,
+        "quality_warnings": quality_warnings,
+        "quality_penalty_applied": quality_penalty < 1.0,
     }
 
 
