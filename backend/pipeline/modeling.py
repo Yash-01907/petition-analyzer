@@ -10,7 +10,9 @@ import numpy as np
 import pandas as pd
 import shap
 import warnings
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", module="xgboost")
+warnings.filterwarnings("ignore", module="shap")
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge

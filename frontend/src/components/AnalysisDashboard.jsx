@@ -74,14 +74,16 @@ export default function AnalysisDashboard({ result }) {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h3 className="text-sm font-medium text-gray-500 mb-1">Top Performing Traffic</h3>
           <p className="text-3xl font-bold text-gray-900 capitalize">
-            {source_breakdown.reduce((max, s) => s.avg_conversion > max.avg_conversion ? s : max, source_breakdown[0])?.traffic_source}
+            {source_breakdown?.length > 0
+              ? source_breakdown.reduce((max, s) => s.avg_conversion > max.avg_conversion ? s : max, source_breakdown[0]).traffic_source
+              : "—"}
           </p>
         </div>
       </div>
 
       {/* Feature Importance Chart */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">What Drives Conversation</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">What Drives Conversion</h3>
         <p className="text-sm text-gray-500 mb-6">
           The machine learning model identified these features as having the highest impact on conversion rates in your historical data.
         </p>

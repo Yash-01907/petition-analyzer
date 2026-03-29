@@ -72,10 +72,10 @@ All 5 suites (210 total checks) should pass with `🎉 All tests passed!`.
 
 ## Project Structure
 
-```
+```text
 petition-analyzer/
 ├── backend/
-│   ├── main.py                       # FastAPI app (5 endpoints)
+│   ├── main.py                       # FastAPI app (7 endpoints)
 │   ├── requirements.txt
 │   ├── data/
 │   │   ├── synthetic_generator.py    # Generates realistic campaign data
@@ -87,7 +87,11 @@ petition-analyzer/
 │   │   └── recommender.py           # Grading, recommendations, archetypes
 │   ├── api/
 │   │   └── schemas.py                # Pydantic request models
-│   └── tests/                        # 5 test suites, 210 checks
+│   ├── utils/
+│   │   ├── export.py                 # PDF report generation (ReportLab)
+│   │   ├── integrations.py          # ActionKit/NationBuilder adapters
+│   │   └── model_store.py           # Persistent model storage (joblib)
+│   └── tests/                        # 6 test suites, 230+ checks
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx                   # Shell with tab routing
@@ -109,7 +113,7 @@ petition-analyzer/
 | Backend | Python, FastAPI, spaCy, VADER, NRCLex, Textstat |
 | ML | XGBoost / RandomForest / Ridge (adaptive by dataset size) |
 | Explainability | SHAP (directional feature impact per campaign) |
-| Frontend | React 18, Vite, Tailwind CSS v4, Recharts |
+| Frontend | React 19, Vite 8, Tailwind CSS v4, Recharts |
 
 ## How It Works
 
@@ -126,6 +130,8 @@ petition-analyzer/
 | `GET` | `/api/health` | Health check + model status |
 | `POST` | `/api/analyze` | Upload CSV → full pipeline analysis |
 | `POST` | `/api/score-draft` | Score a new campaign draft (requires trained model) |
+| `POST` | `/api/retrain` | Append new campaign data and retrain the model |
+| `GET` | `/api/export-pdf` | Download the analysis report as PDF |
 | `GET` | `/api/sample-data` | Preview the synthetic dataset (JSON) |
 | `GET` | `/api/sample-csv` | Download the synthetic dataset (CSV file) |
 
@@ -135,7 +141,7 @@ petition-analyzer/
 2. **Confounding variables** — Traffic quality, email list engagement rates, current events, and seasonal effects all influence conversion independently of copy quality.
 3. **Cross-category generalization** — Environment petitions attract different audiences than housing petitions. The model controls for category as a feature, but within-category models would be more accurate given sufficient data.
 4. **Temporal drift** — What converted in 2022 may not convert in 2025. The system should be retrained quarterly with fresh campaign data.
-5. **In-memory model** — The trained model lives in process memory. Restarting the backend server clears it. A production system would persist to disk or Redis.
+5. **Single-worker model** — The trained model is persisted to disk via `joblib` and auto-restored on startup, but the in-memory state is not shared across workers. A multi-worker production deployment would need a shared model store (e.g., Redis).
 6. **Synthetic data** — The included sample dataset is synthetically generated. Model accuracy will improve substantially with real campaign data.
 
 ## Modeling Decisions

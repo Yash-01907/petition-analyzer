@@ -67,7 +67,7 @@
 
 ### "What would you improve with more time?"
 
-> "Three things: (1) Persistent model storage — right now the trained model lives in memory. I'd add Redis or disk persistence. (2) Within-category models — environment petitions attract different audiences than housing petitions. With enough data per category, separate models would be more precise. (3) A/B test integration — the recommendation engine generates hypotheses, but it doesn't yet close the loop by tracking which recommendations actually improved conversion."
+> "Three things: (1) Within-category models — environment petitions attract different audiences than housing petitions. With enough data per category, separate models would be more precise. (2) A/B test integration — the recommendation engine generates hypotheses, but it doesn't yet close the loop by tracking which recommendations actually improved conversion. (3) Multi-worker model sharing — the model is persisted to disk via joblib and auto-restores on startup, but in a multi-worker deployment I'd add a shared model store like Redis."
 
 ---
 
