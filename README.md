@@ -2,6 +2,8 @@
 
 A data-driven tool that helps advocacy organizations understand what textual and structural features of their petition campaigns correlate with higher signature conversion rates. Upload your campaign history, train an ML model, and score new drafts before publishing.
 
+> 🧠 **Technical Decisions & Approach:** Read [APPROACH.md](./APPROACH.md) for a deep dive into the reasoning behind the feature engineering, model selection, explainability framework, and product philosophy.
+
 ## Quick Start
 
 ### Prerequisites
@@ -127,7 +129,7 @@ petition-analyzer/
 ## API Endpoints
 
 | Method | Path | Description |
-|--------|------|-------------|
+| -------- | ------ | ------------- |
 | `GET` | `/api/health` | Health check + model status |
 | `POST` | `/api/analyze` | Upload CSV → full pipeline analysis |
 | `POST` | `/api/score-draft` | Score a new campaign draft (requires trained model) |
