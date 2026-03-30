@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 import io
 import logging
+import os
 
 from pipeline.ingestion import load_and_validate_csv
 from pipeline.feature_extraction import extract_features
@@ -22,6 +23,9 @@ from utils.export import generate_analysis_pdf
 from utils.model_store import save_model, load_latest_model, list_saved_models
 
 logger = logging.getLogger("petition-analyzer")
+
+ACTIVE_DATASET_PATH = "data/user_campaigns.csv"
+SAMPLE_DATASET_PATH = "data/sample_campaigns.csv"
 
 app = FastAPI(title="Petition Effectiveness Analyzer API", version="1.0.0")
 
@@ -43,6 +47,24 @@ _restored = load_latest_model()
 if _restored:
     _model_state.update(_restored)
     logger.info("Restored saved model from disk (%d campaigns)", _restored.get("n_campaigns", 0))
+
+
+def _load_active_dataset() -> pd.DataFrame:
+    """Load the current active dataset for retraining.
+
+    Priority:
+    1) model state's dataset_path
+    2) ACTIVE_DATASET_PATH
+    3) SAMPLE_DATASET_PATH (legacy fallback)
+    """
+    preferred = _model_state.get("dataset_path") or ACTIVE_DATASET_PATH
+    if os.path.exists(preferred):
+        return pd.read_csv(preferred)
+    if os.path.exists(ACTIVE_DATASET_PATH):
+        return pd.read_csv(ACTIVE_DATASET_PATH)
+    if os.path.exists(SAMPLE_DATASET_PATH):
+        return pd.read_csv(SAMPLE_DATASET_PATH)
+    return pd.DataFrame()
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
@@ -81,6 +103,13 @@ async def analyze_campaigns(file: UploadFile = File(...)):
         
     if len(df) < 5:
         raise HTTPException(400, "Need at least 5 campaigns to analyze")
+
+    # Persist the uploaded dataset as the active retraining base.
+    try:
+        df.to_csv(ACTIVE_DATASET_PATH, index=False)
+        _model_state["dataset_path"] = ACTIVE_DATASET_PATH
+    except Exception as e:
+        logger.warning("Failed to persist active dataset: %s", e)
 
     # Feature extraction
     X = extract_features(df)
@@ -356,7 +385,7 @@ async def list_models():
 async def retrain_with_new_data(file: UploadFile = File(...)):
     """Append new campaign data and retrain the model.
 
-    Accepts a CSV of new campaigns, merges with the existing sample data,
+    Accepts a CSV of new campaigns, merges with the active analyzed dataset,
     and retrains. This implements the POST-CAMPAIGN LOOP from the spec:
     new results feed back into the model, sharpening recommendations.
     """
@@ -366,11 +395,8 @@ async def retrain_with_new_data(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(400, f"Invalid CSV: {str(e)}")
 
-    # Load existing data
-    try:
-        existing_df = pd.read_csv("data/sample_campaigns.csv")
-    except FileNotFoundError:
-        existing_df = pd.DataFrame()
+    # Load active baseline data (latest analyzed user dataset when available).
+    existing_df = _load_active_dataset()
 
     # Merge datasets
     combined_df = pd.concat([existing_df, new_df], ignore_index=True)
@@ -392,8 +418,8 @@ async def retrain_with_new_data(file: UploadFile = File(...)):
     y = df["conversion_rate"]
     model, scaler, shap_values, feature_importance, cv_metrics = train_and_explain(X, y)
 
-    # Save validated dataset only on success
-    df.to_csv("data/sample_campaigns.csv", index=False)
+    # Save validated dataset only on success as the new active retraining base.
+    df.to_csv(ACTIVE_DATASET_PATH, index=False)
 
 
     # Update model state
@@ -405,6 +431,7 @@ async def retrain_with_new_data(file: UploadFile = File(...)):
     _model_state["campaign_averages"] = X.mean().to_dict()
     _model_state["feature_importance"] = feature_importance
     _model_state["n_campaigns"] = len(df)
+    _model_state["dataset_path"] = ACTIVE_DATASET_PATH
 
     # Persist
     try:
