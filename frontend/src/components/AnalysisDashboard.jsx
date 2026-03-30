@@ -1,6 +1,7 @@
 // frontend/src/components/AnalysisDashboard.jsx
 
 import React, { useState } from "react";
+import { retrainAndRefresh } from "../api/client";
 import {
   BarChart,
   Bar,
@@ -19,9 +20,12 @@ const GRADE_COLORS = {
   F: "bg-red-50 text-red-800",
 };
 
-export default function AnalysisDashboard({ result }) {
+export default function AnalysisDashboard({ result, onAnalysisComplete }) {
   const { summary, feature_importance, campaign_scores, archetypes, source_breakdown } = result;
   const [downloading, setDownloading] = useState(false);
+  const [retraining, setRetraining] = useState(false);
+  const [retrainError, setRetrainError] = useState(null);
+  const [retrainMessage, setRetrainMessage] = useState(null);
 
   const handleDownloadPDF = async () => {
     setDownloading(true);
@@ -42,24 +46,79 @@ export default function AnalysisDashboard({ result }) {
     }
   };
 
+  const handleRetrainUpload = async (event) => {
+    const file = event.target.files[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setRetraining(true);
+    setRetrainError(null);
+    setRetrainMessage(null);
+    try {
+      const { analysis, retrainResult } = await retrainAndRefresh(file);
+      onAnalysisComplete?.(analysis);
+      setRetrainMessage(retrainResult?.message || "Retraining complete. Dashboard refreshed.");
+    } catch (err) {
+      setRetrainError(
+        err.response?.data?.detail ||
+          err.response?.data?.message ||
+          "Failed to retrain with the uploaded CSV. Please verify the file schema and try again."
+      );
+    } finally {
+      setRetraining(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Header with Download */}
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-gray-900">Analysis Results</h2>
-        <button
-          onClick={handleDownloadPDF}
-          disabled={downloading}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-        >
-          {downloading ? (
-            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-          ) : (
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-          )}
-          {downloading ? "Generating..." : "Download PDF Report"}
-        </button>
+        <div className="flex items-center gap-3">
+          <label
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm border border-transparent ${
+              retraining
+                ? "bg-emerald-400 text-white cursor-not-allowed opacity-75"
+                : "bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+            }`}
+          >
+            <input
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={handleRetrainUpload}
+              disabled={retraining}
+            />
+            <span>📥</span>
+            <span>{retraining ? "Retraining..." : "Add CSV & Retrain"}</span>
+          </label>
+
+          <button
+            onClick={handleDownloadPDF}
+            disabled={downloading}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          >
+            {downloading ? (
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            ) : (
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            )}
+            {downloading ? "Generating..." : "Download PDF Report"}
+          </button>
+        </div>
       </div>
+
+      {retrainError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          {retrainError}
+        </div>
+      )}
+
+      {retrainMessage && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+          {retrainMessage}
+        </div>
+      )}
 
       {/* Top Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -302,7 +302,16 @@ async def get_sample_csv():
     import os
     file_path = "data/sample_campaigns.csv"
     if os.path.exists(file_path):
-        return FileResponse(file_path, media_type="text/csv", filename="sample_campaigns.csv")
+        return FileResponse(
+            file_path,
+            media_type="text/csv",
+            filename="sample_campaigns.csv",
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
     raise HTTPException(404, "Sample data not found. Please run synthetic_generator.py first.")
 
 

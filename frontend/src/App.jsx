@@ -57,7 +57,10 @@ export default function App() {
           />
         )}
         {activeTab === "analysis" && analysisResult && (
-          <AnalysisDashboard result={analysisResult} />
+          <AnalysisDashboard
+            result={analysisResult}
+            onAnalysisComplete={(updatedResult) => setAnalysisResult(updatedResult)}
+          />
         )}
         {activeTab === "scorer" && (
           <DraftScorer avgRate={analysisResult?.summary?.avg_conversion_rate} />
