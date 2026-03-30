@@ -10,6 +10,7 @@ import numpy as np
 import io
 import logging
 import os
+from datetime import datetime
 
 from pipeline.ingestion import load_and_validate_csv
 from pipeline.feature_extraction import extract_features
@@ -24,8 +25,10 @@ from utils.model_store import save_model, load_latest_model, list_saved_models
 
 logger = logging.getLogger("petition-analyzer")
 
-ACTIVE_DATASET_PATH = "data/user_campaigns.csv"
-SAMPLE_DATASET_PATH = "data/sample_campaigns.csv"
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BACKEND_DIR, "data")
+ACTIVE_DATASET_PATH = os.path.join(DATA_DIR, "user_campaigns.csv")
+SAMPLE_DATASET_PATH = os.path.join(DATA_DIR, "sample_campaigns.csv")
 
 app = FastAPI(title="Petition Effectiveness Analyzer API", version="1.0.0")
 
@@ -57,9 +60,12 @@ def _load_active_dataset() -> pd.DataFrame:
     2) ACTIVE_DATASET_PATH
     3) SAMPLE_DATASET_PATH (legacy fallback)
     """
-    preferred = _model_state.get("dataset_path") or ACTIVE_DATASET_PATH
+    preferred = _model_state.get("dataset_path") or _latest_active_dataset_path() or ACTIVE_DATASET_PATH
     if os.path.exists(preferred):
         return pd.read_csv(preferred)
+    latest_user = _latest_active_dataset_path()
+    if latest_user and os.path.exists(latest_user):
+        return pd.read_csv(latest_user)
     if os.path.exists(ACTIVE_DATASET_PATH):
         return pd.read_csv(ACTIVE_DATASET_PATH)
     if os.path.exists(SAMPLE_DATASET_PATH):
@@ -67,67 +73,51 @@ def _load_active_dataset() -> pd.DataFrame:
     return pd.DataFrame()
 
 
-# ── Health ────────────────────────────────────────────────────────────────────
-
-@app.get("/")
-def root():
-    return {"status": "ok", "message": "Petition Analyzer API running"}
+def _ensure_data_dir():
+    os.makedirs(DATA_DIR, exist_ok=True)
 
 
-@app.get("/api/health")
-def health():
-    model_ready = bool(_model_state.get("model"))
-    return {"status": "healthy", "model_trained": model_ready}
+def _latest_active_dataset_path() -> str | None:
+    """Return the most recently modified user dataset file path, if any."""
+    _ensure_data_dir()
+    candidates = []
+    for name in os.listdir(DATA_DIR):
+        if name == "user_campaigns.csv" or (name.startswith("user_campaigns_") and name.endswith(".csv")):
+            path = os.path.join(DATA_DIR, name)
+            if os.path.isfile(path):
+                candidates.append(path)
+    if not candidates:
+        return None
+    return max(candidates, key=os.path.getmtime)
 
 
-# ── Analyze ───────────────────────────────────────────────────────────────────
+def _persist_active_dataset(df: pd.DataFrame) -> str:
+    """Persist active dataset to a versioned file and best-effort latest alias."""
+    _ensure_data_dir()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    versioned_path = os.path.join(DATA_DIR, f"user_campaigns_{timestamp}.csv")
+    df.to_csv(versioned_path, index=False)
 
-@app.post("/api/analyze")
-async def analyze_campaigns(file: UploadFile = File(...)):
-    """Accept a CSV of past campaigns, run the full analysis pipeline.
-
-    Returns feature importance, model metrics, campaign scores,
-    archetypes, and source breakdown.
-    """
-    contents = await file.read()
-    try:
-        df = pd.read_csv(io.BytesIO(contents))
-    except Exception as e:
-        raise HTTPException(400, f"Invalid CSV: {str(e)}")
-
-    # Validate and clean
-    try:
-        df, validation_errors = load_and_validate_csv(df)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-        
-    if len(df) < 5:
-        raise HTTPException(400, "Need at least 5 campaigns to analyze")
-
-    # Persist the uploaded dataset as the active retraining base.
+    # Best-effort compatibility alias; ignore lock failures on fixed filename.
     try:
         df.to_csv(ACTIVE_DATASET_PATH, index=False)
-        _model_state["dataset_path"] = ACTIVE_DATASET_PATH
     except Exception as e:
-        logger.warning("Failed to persist active dataset: %s", e)
+        logger.warning("Could not update active alias file %s: %s", ACTIVE_DATASET_PATH, e)
 
-    # Feature extraction
-    X = extract_features(df)
-    y = df["conversion_rate"]
+    return versioned_path
 
-    # Model training + SHAP
-    model, scaler, shap_values, feature_importance, cv_metrics = train_and_explain(X, y)
 
-    # Store model state for subsequent scoring requests
-    _model_state["model"] = model
-    _model_state["scaler"] = scaler
-    _model_state["X_columns"] = list(X.columns)
-    _model_state["avg_rate"] = float(y.mean())
-    _model_state["std_rate"] = float(y.std())
-    _model_state["campaign_averages"] = X.mean().to_dict()
-    _model_state["feature_importance"] = feature_importance
-    _model_state["n_campaigns"] = len(df)
-
+def _build_analysis_result(
+    df: pd.DataFrame,
+    X: pd.DataFrame,
+    y: pd.Series,
+    model,
+    scaler,
+    feature_importance: dict,
+    cv_metrics: dict,
+    validation_errors: list,
+) -> dict:
+    """Build the shared analysis payload used by /api/analyze and /api/retrain."""
     # Top 15 features for display
     top_features = [
         {
@@ -178,7 +168,7 @@ async def analyze_campaigns(file: UploadFile = File(...)):
     source_stats = source_stats.fillna(0).round(2)
     source_breakdown = source_stats.to_dict("records")
 
-    result = {
+    return {
         "status": "success",
         "cv_metrics": cv_metrics,
         "feature_importance": top_features,
@@ -194,6 +184,98 @@ async def analyze_campaigns(file: UploadFile = File(...)):
         },
     }
 
+
+def _sanitize_for_json(value):
+    """Recursively replace NaN/inf values so FastAPI JSON serialization is safe."""
+    if isinstance(value, dict):
+        return {k: _sanitize_for_json(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_for_json(v) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_sanitize_for_json(v) for v in value)
+    if isinstance(value, np.floating):
+        if np.isnan(value) or np.isinf(value):
+            return None
+        return float(value)
+    if isinstance(value, float):
+        if np.isnan(value) or np.isinf(value):
+            return None
+        return value
+    return value
+
+
+# ── Health ────────────────────────────────────────────────────────────────────
+
+@app.get("/")
+def root():
+    return {"status": "ok", "message": "Petition Analyzer API running"}
+
+
+@app.get("/api/health")
+def health():
+    model_ready = bool(_model_state.get("model"))
+    return {"status": "healthy", "model_trained": model_ready}
+
+
+# ── Analyze ───────────────────────────────────────────────────────────────────
+
+@app.post("/api/analyze")
+async def analyze_campaigns(file: UploadFile = File(...)):
+    """Accept a CSV of past campaigns, run the full analysis pipeline.
+
+    Returns feature importance, model metrics, campaign scores,
+    archetypes, and source breakdown.
+    """
+    contents = await file.read()
+    try:
+        df = pd.read_csv(io.BytesIO(contents))
+    except Exception as e:
+        raise HTTPException(400, f"Invalid CSV: {str(e)}")
+
+    # Validate and clean
+    try:
+        df, validation_errors = load_and_validate_csv(df)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+        
+    if len(df) < 5:
+        raise HTTPException(400, "Need at least 5 campaigns to analyze")
+
+    # Persist the uploaded dataset as the active retraining base.
+    try:
+        saved_path = _persist_active_dataset(df)
+        _model_state["dataset_path"] = saved_path
+    except Exception as e:
+        raise HTTPException(500, f"Unable to persist active dataset: {str(e)}")
+
+    # Feature extraction
+    X = extract_features(df)
+    y = df["conversion_rate"]
+
+    # Model training + SHAP
+    model, scaler, shap_values, feature_importance, cv_metrics = train_and_explain(X, y)
+
+    # Store model state for subsequent scoring requests
+    _model_state["model"] = model
+    _model_state["scaler"] = scaler
+    _model_state["X_columns"] = list(X.columns)
+    _model_state["avg_rate"] = float(y.mean())
+    _model_state["std_rate"] = float(y.std())
+    _model_state["campaign_averages"] = X.mean().to_dict()
+    _model_state["feature_importance"] = feature_importance
+    _model_state["n_campaigns"] = len(df)
+
+    result = _build_analysis_result(
+        df=df,
+        X=X,
+        y=y,
+        model=model,
+        scaler=scaler,
+        feature_importance=feature_importance,
+        cv_metrics=cv_metrics,
+        validation_errors=validation_errors,
+    )
+
     # Phase 9: Persist model to disk + cache result for export
     try:
         save_path = save_model(_model_state)
@@ -204,7 +286,7 @@ async def analyze_campaigns(file: UploadFile = File(...)):
     global _last_analysis_result
     _last_analysis_result = result
 
-    return result
+    return _sanitize_for_json(result)
 
 
 # ── Score Draft ───────────────────────────────────────────────────────────────
@@ -315,7 +397,7 @@ async def score_draft(request: DraftScoreRequest):
 async def get_sample_data():
     """Return the pre-generated synthetic dataset for demo purposes."""
     try:
-        df = pd.read_csv("data/sample_campaigns.csv")
+        df = pd.read_csv(SAMPLE_DATASET_PATH)
         return {
             "data": df.head(10).to_dict("records"),
             "total_rows": len(df),
@@ -328,8 +410,7 @@ async def get_sample_data():
 async def get_sample_csv():
     """Return the raw sample CSV file to be uploaded by the UI mock data button."""
     from fastapi.responses import FileResponse
-    import os
-    file_path = "data/sample_campaigns.csv"
+    file_path = SAMPLE_DATASET_PATH
     if os.path.exists(file_path):
         return FileResponse(
             file_path,
@@ -419,7 +500,10 @@ async def retrain_with_new_data(file: UploadFile = File(...)):
     model, scaler, shap_values, feature_importance, cv_metrics = train_and_explain(X, y)
 
     # Save validated dataset only on success as the new active retraining base.
-    df.to_csv(ACTIVE_DATASET_PATH, index=False)
+    try:
+        saved_path = _persist_active_dataset(df)
+    except Exception as e:
+        raise HTTPException(500, f"Unable to persist active dataset during retrain: {str(e)}")
 
 
     # Update model state
@@ -431,7 +515,7 @@ async def retrain_with_new_data(file: UploadFile = File(...)):
     _model_state["campaign_averages"] = X.mean().to_dict()
     _model_state["feature_importance"] = feature_importance
     _model_state["n_campaigns"] = len(df)
-    _model_state["dataset_path"] = ACTIVE_DATASET_PATH
+    _model_state["dataset_path"] = saved_path
 
     # Persist
     try:
@@ -439,10 +523,25 @@ async def retrain_with_new_data(file: UploadFile = File(...)):
     except Exception as e:
         logger.warning("Failed to persist retrained model: %s", e)
 
-    return {
+    analysis = _build_analysis_result(
+        df=df,
+        X=X,
+        y=y,
+        model=model,
+        scaler=scaler,
+        feature_importance=feature_importance,
+        cv_metrics=cv_metrics,
+        validation_errors=validation_errors,
+    )
+
+    global _last_analysis_result
+    _last_analysis_result = analysis
+
+    return _sanitize_for_json({
         "status": "success",
         "message": f"Retrained on {len(df)} campaigns (added {len(new_df)} new).",
         "cv_metrics": cv_metrics,
         "total_campaigns": len(df),
         "validation_errors": validation_errors,
-    }
+        "analysis": analysis,
+    })

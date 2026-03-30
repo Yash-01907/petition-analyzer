@@ -48,9 +48,10 @@ export async function getSampleCSV({ bustCache = false } = {}) {
 
 export async function retrainAndRefresh(file) {
   const retrainResult = await retrainCSV(file);
-  const blob = await getSampleCSV({ bustCache: true });
-  const combinedFile = new File([blob], "combined_campaigns.csv", { type: "text/csv" });
-  const analysis = await analyzeCSV(combinedFile);
+  const analysis = retrainResult?.analysis;
+  if (!analysis) {
+    throw new Error("Retrain completed but no analysis payload was returned.");
+  }
   return { analysis, retrainResult };
 }
 

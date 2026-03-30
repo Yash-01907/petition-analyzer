@@ -240,6 +240,8 @@ try:
     retrain_data = r_retrain.json()
     check("Retrain status is success", retrain_data.get("status") == "success")
     check("Retrain payload has cv_metrics", "cv_metrics" in retrain_data)
+    check("Retrain payload has analysis", "analysis" in retrain_data)
+    check("Retrain analysis has summary", "summary" in retrain_data.get("analysis", {}))
 
     # Test retrain failure
     r_retrain_fail = client.post("/api/retrain", files={"file": ("bad.csv", b"", "text/csv")})

@@ -12,6 +12,37 @@ const GRADE_COLORS = {
   F: "bg-red-50 text-red-800 border-red-200",
 };
 
+function parseApiError(error) {
+  const fallback = "Scoring failed. Upload campaign data first.";
+  const detail = error?.response?.data?.detail;
+
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    const messages = detail.map((item) => {
+      if (typeof item === "string") return item;
+      if (item?.msg && item?.loc) {
+        const field = Array.isArray(item.loc) ? item.loc[item.loc.length - 1] : "field";
+        return `${field}: ${item.msg}`;
+      }
+      if (item?.msg) return item.msg;
+      return null;
+    }).filter(Boolean);
+
+    if (messages.length > 0) {
+      return messages.join(" | ");
+    }
+  }
+
+  if (detail && typeof detail === "object") {
+    return detail.message || fallback;
+  }
+
+  return error?.message || fallback;
+}
+
 export default function DraftScorer({ avgRate }) {
   const [form, setForm] = useState({
     headline: "",
@@ -31,7 +62,8 @@ export default function DraftScorer({ avgRate }) {
       const data = await scoreDraft(form);
       setResult(data);
     } catch (e) {
-      setError(e.response?.data?.detail || "Scoring failed. Upload campaign data first.");
+      setResult(null);
+      setError(parseApiError(e));
     } finally {
       setLoading(false);
     }

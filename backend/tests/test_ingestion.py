@@ -29,7 +29,7 @@ df, errors = load_and_validate_csv(df_raw.copy())
 
 check("Returns a DataFrame", isinstance(df, pd.DataFrame))
 check("Returns a list of errors", isinstance(errors, list))
-check("120 rows preserved", len(df) == 120)
+check("Input row count preserved", len(df) == len(df_raw))
 check("conversion_rate column exists", "conversion_rate" in df.columns)
 check("All conversion rates >= 0", (df["conversion_rate"] >= 0).all())
 check("All conversion rates <= 100", (df["conversion_rate"] <= 100).all())

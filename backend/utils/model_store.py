@@ -49,6 +49,7 @@ def save_model(model_state: dict) -> str:
         "X_columns": model_state.get("X_columns", []),
         "avg_rate": model_state.get("avg_rate", 0),
         "std_rate": model_state.get("std_rate", 0),
+        "dataset_path": model_state.get("dataset_path"),
         "campaign_averages": model_state.get("campaign_averages", {}),
         "feature_importance": {
             k: float(v)
@@ -104,6 +105,7 @@ def load_latest_model() -> dict | None:
         "X_columns": metadata.get("X_columns", []),
         "avg_rate": metadata.get("avg_rate", 0),
         "std_rate": metadata.get("std_rate", 0),
+        "dataset_path": metadata.get("dataset_path"),
         "campaign_averages": metadata.get("campaign_averages", {}),
         "feature_importance": metadata.get("feature_importance", {}),
         "n_campaigns": metadata.get("n_campaigns", 0),
