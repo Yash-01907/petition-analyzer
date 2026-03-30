@@ -3,7 +3,11 @@
 import React, { useState } from "react";
 import { analyzeCSV, getSampleCSV } from "../api/client";
 
-export default function UploadPanel({ onAnalysisComplete, isLoading, setIsLoading }) {
+export default function UploadPanel({
+  onAnalysisComplete,
+  isLoading,
+  setIsLoading,
+}) {
   const [error, setError] = useState(null);
 
   const handleFileUpload = async (event) => {
@@ -18,8 +22,8 @@ export default function UploadPanel({ onAnalysisComplete, isLoading, setIsLoadin
       onAnalysisComplete(data);
     } catch (err) {
       setError(
-        err.response?.data?.detail || 
-        "Failed to upload and analyze the CSV file. Please make sure it follows the required format."
+        err.response?.data?.detail ||
+          "Failed to upload and analyze the CSV file. Please make sure it follows the required format.",
       );
     } finally {
       setIsLoading(false);
@@ -31,12 +35,18 @@ export default function UploadPanel({ onAnalysisComplete, isLoading, setIsLoadin
     setError(null);
     try {
       const blob = await getSampleCSV();
-      const file = new File([blob], "sample_campaigns.csv", { type: "text/csv" });
-      
+      const file = new File([blob], "sample_campaigns.csv", {
+        type: "text/csv",
+      });
+
       const data = await analyzeCSV(file);
       onAnalysisComplete(data);
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || "Failed to load sample data.");
+      setError(
+        err.response?.data?.detail ||
+          err.message ||
+          "Failed to load sample data.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -48,34 +58,37 @@ export default function UploadPanel({ onAnalysisComplete, isLoading, setIsLoadin
         <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
           📊
         </div>
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Upload Campaign History</h2>
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+          Upload Campaign History
+        </h2>
         <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
-          Upload a CSV containing your past petition campaigns to train the model. 
-          Required columns: headline, body_text, cta_text, unique_visitors, signatures, traffic_source.
+          Upload a CSV containing your past petition campaigns to train the
+          model. Required columns: headline, body_text, cta_text,
+          unique_visitors, signatures, traffic_source.
         </p>
       </div>
 
       <div className="space-y-4">
         <div>
-          <label 
+          <label
             className={`inline-flex w-full sm:w-auto items-center justify-center px-6 py-3 border border-transparent 
                        text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 
                        cursor-pointer transition-colors ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             <span className="mr-2">📁</span>
             {isLoading ? "Analyzing..." : "Select CSV File"}
-            <input 
-              type="file" 
-              className="hidden" 
-              accept=".csv" 
-              onChange={handleFileUpload} 
-              disabled={isLoading} 
+            <input
+              type="file"
+              className="hidden"
+              accept=".csv"
+              onChange={handleFileUpload}
+              disabled={isLoading}
             />
           </label>
         </div>
-        
+
         <div className="text-sm text-gray-400">or</div>
-        
+
         <div>
           <button
             onClick={loadSampleData}

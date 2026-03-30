@@ -35,8 +35,11 @@ export default function App() {
                       : "text-gray-600 hover:bg-gray-100"
                   }`}
                 >
-                  {tab === "upload" ? "📂 Data" :
-                   tab === "analysis" ? "📊 Analysis" : "✏️ Score Draft"}
+                  {tab === "upload"
+                    ? "📂 Data"
+                    : tab === "analysis"
+                      ? "📊 Analysis"
+                      : "✏️ Score Draft"}
                 </button>
               ))}
             </nav>
@@ -59,7 +62,9 @@ export default function App() {
         {activeTab === "analysis" && analysisResult && (
           <AnalysisDashboard
             result={analysisResult}
-            onAnalysisComplete={(updatedResult) => setAnalysisResult(updatedResult)}
+            onAnalysisComplete={(updatedResult) =>
+              setAnalysisResult(updatedResult)
+            }
           />
         )}
         {activeTab === "scorer" && (
