@@ -118,7 +118,7 @@ export default function DraftScorer({ avgRate }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Expected Traffic Source
@@ -205,16 +205,16 @@ export default function DraftScorer({ avgRate }) {
 
           {/* Score Card */}
           <div className={`rounded-xl border-2 p-6 ${GRADE_COLORS[result.grade]}`}>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="text-5xl font-bold">{result.grade}</div>
+                <div className="text-4xl sm:text-5xl font-bold">{result.grade}</div>
                 <div className="text-lg font-semibold mt-1">{result.label}</div>
                 <div className="text-sm mt-2 opacity-80">
                   Predicted conversion: <strong>{result.predicted_rate}%</strong>
                   {avgRate && ` (your average: ${avgRate}%)`}
                 </div>
               </div>
-              <div className="text-right text-sm opacity-75">
+              <div className="text-left sm:text-right text-sm opacity-75">
                 <div>Z-score: {result.z_score > 0 ? "+" : ""}{result.z_score}</div>
                 <div className="text-xs mt-1">vs. your historical campaigns</div>
               </div>

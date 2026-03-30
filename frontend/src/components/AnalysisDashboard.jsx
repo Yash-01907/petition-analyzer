@@ -1,6 +1,6 @@
 // frontend/src/components/AnalysisDashboard.jsx
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { retrainAndRefresh } from "../api/client";
 import {
   BarChart,
@@ -26,6 +26,13 @@ export default function AnalysisDashboard({ result, onAnalysisComplete }) {
   const [retraining, setRetraining] = useState(false);
   const [retrainError, setRetrainError] = useState(null);
   const [retrainMessage, setRetrainMessage] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const handleDownloadPDF = async () => {
     setDownloading(true);
@@ -72,11 +79,11 @@ export default function AnalysisDashboard({ result, onAnalysisComplete }) {
   return (
     <div className="space-y-8">
       {/* Header with Download */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
         <h2 className="text-xl font-bold text-gray-900">Analysis Results</h2>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
           <label
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm border border-transparent ${
+            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm border border-transparent w-full sm:w-auto ${
               retraining
                 ? "bg-emerald-400 text-white cursor-not-allowed opacity-75"
                 : "bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
@@ -96,7 +103,7 @@ export default function AnalysisDashboard({ result, onAnalysisComplete }) {
           <button
             onClick={handleDownloadPDF}
             disabled={downloading}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm w-full sm:w-auto"
           >
             {downloading ? (
               <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
@@ -121,7 +128,7 @@ export default function AnalysisDashboard({ result, onAnalysisComplete }) {
       )}
 
       {/* Top Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h3 className="text-sm font-medium text-gray-500 mb-1">Campaigns Analyzed</h3>
           <p className="text-3xl font-bold text-gray-900">{summary.n_campaigns}</p>
@@ -141,25 +148,25 @@ export default function AnalysisDashboard({ result, onAnalysisComplete }) {
       </div>
 
       {/* Feature Importance Chart */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">What Drives Conversion</h3>
         <p className="text-sm text-gray-500 mb-6">
           The machine learning model identified these features as having the highest impact on conversion rates in your historical data.
         </p>
-        <div className="h-80 w-full text-sm">
+        <div className="h-[22rem] sm:h-80 w-full text-sm">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={feature_importance}
+              data={isMobile ? feature_importance.slice(0, 8) : feature_importance}
               layout="vertical"
-              margin={{ top: 5, right: 30, left: 200, bottom: 5 }}
+              margin={isMobile ? { top: 5, right: 10, left: 110, bottom: 5 } : { top: 5, right: 30, left: 200, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
               <XAxis type="number" hide />
               <YAxis 
                 type="category" 
                 dataKey="label" 
-                tick={{ fontSize: 12, fill: "#4B5563" }} 
-                width={190} 
+                tick={{ fontSize: isMobile ? 10 : 12, fill: "#4B5563" }} 
+                width={isMobile ? 100 : 190} 
                 axisLine={false} 
                 tickLine={false} 
               />
@@ -174,7 +181,7 @@ export default function AnalysisDashboard({ result, onAnalysisComplete }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
         {/* Archetypes */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Audience Archetypes</h3>
@@ -207,13 +214,13 @@ export default function AnalysisDashboard({ result, onAnalysisComplete }) {
         </div>
 
         {/* Campaign Scores */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 overflow-hidden flex flex-col">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 overflow-hidden flex flex-col">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Campaign Leaderboard</h3>
           <p className="text-sm text-gray-500 mb-4">
             Your recent campaigns graded against the model expectations.
           </p>
-          <div className="overflow-y-auto flex-1 max-h-[500px]">
-             <table className="min-w-full divide-y divide-gray-200">
+           <div className="overflow-x-auto overflow-y-auto flex-1 max-h-[500px]">
+             <table className="min-w-[560px] w-full divide-y divide-gray-200">
                <thead className="bg-gray-50 sticky top-0">
                  <tr>
                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign</th>

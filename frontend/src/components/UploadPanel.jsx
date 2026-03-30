@@ -43,12 +43,12 @@ export default function UploadPanel({ onAnalysisComplete, isLoading, setIsLoadin
   };
 
   return (
-    <div className="max-w-2xl mx-auto mt-12 bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+    <div className="max-w-2xl mx-auto mt-6 sm:mt-12 bg-white rounded-xl shadow-sm border border-gray-200 p-5 sm:p-8 text-center">
       <div className="mb-6">
         <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
           📊
         </div>
-        <h2 className="text-xl font-semibold text-gray-900">Upload Campaign History</h2>
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Upload Campaign History</h2>
         <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
           Upload a CSV containing your past petition campaigns to train the model. 
           Required columns: headline, body_text, cta_text, unique_visitors, signatures, traffic_source.
@@ -58,7 +58,7 @@ export default function UploadPanel({ onAnalysisComplete, isLoading, setIsLoadin
       <div className="space-y-4">
         <div>
           <label 
-            className={`inline-flex items-center justify-center px-6 py-3 border border-transparent 
+            className={`inline-flex w-full sm:w-auto items-center justify-center px-6 py-3 border border-transparent 
                        text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 
                        cursor-pointer transition-colors ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
           >
